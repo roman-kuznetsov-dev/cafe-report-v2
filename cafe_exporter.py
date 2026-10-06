@@ -12,7 +12,6 @@
   8. Категории
 """
 
-import os
 import pandas as pd
 
 from cafe_analysis import Analysis
@@ -309,8 +308,10 @@ def export_to_excel(analysis: Analysis, out_path: str):
         # Обоснованность
         ws = writer.sheets["Обоснованность"]
         _write_headers(ws, df_just.columns, fmt_head)
-        ws.set_column(0, 0, 22); ws.set_column(1, 1, 22)
-        ws.set_column(2, 4, 12); ws.set_column(5, 5, 18)
+        ws.set_column(0, 0, 22)
+        ws.set_column(1, 1, 22)
+        ws.set_column(2, 4, 12)
+        ws.set_column(5, 5, 18)
         for i, row in df_just.iterrows():
             result = str(row["Результат"])
             if result.startswith("OK"):

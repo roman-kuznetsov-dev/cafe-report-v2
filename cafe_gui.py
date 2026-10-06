@@ -11,12 +11,13 @@
 
 import os
 import sys
-import traceback
 import tkinter as tk
+import traceback
 from datetime import datetime
 from tkinter import filedialog, messagebox, ttk
 
 import matplotlib
+
 matplotlib.use("Agg")
 
 
@@ -182,8 +183,8 @@ class CafeApp:
         cafe_model.ELASTICITY = self.var_elast.get()
 
         try:
-            from cafe_loader import load_all
             from cafe_analysis import Analysis
+            from cafe_loader import load_all
 
             self.data = load_all(self.file_path)
             self.analysis = Analysis(

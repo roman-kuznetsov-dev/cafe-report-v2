@@ -14,13 +14,11 @@
 Этот модуль НЕ имеет GUI. Его использует cafe_gui.py.
 """
 
-import sys
-from dataclasses import dataclass, field
-from datetime import date, datetime
-from typing import List, Dict, Optional
+from dataclasses import dataclass
+from datetime import date
 
-import pandas as pd
 import matplotlib
+
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 
@@ -96,7 +94,7 @@ class Product:
         price = self.purchase_price_1 if period == 1 else self.purchase_price_2
         return price * self.stock_end(period)
 
-    def stock_error(self, period: int) -> Optional[str]:
+    def stock_error(self, period: int) -> str | None:
         """Проверка баланса. Возвращает текст ошибки или None."""
         end = self.stock_end(period)
         if end < 0:
@@ -105,7 +103,7 @@ class Product:
                     f"Продано больше, чем было на складе.")
         return None
 
-    def stock_mismatch(self) -> Optional[str]:
+    def stock_mismatch(self) -> str | None:
         """Остаток конца 1 периода должен совпасть с началом 2."""
         end1 = self.stock_end(1)
         start2 = self.stock_start_2
@@ -153,7 +151,7 @@ class Period:
     def guests_per_day(self) -> float:
         return self.guests / self.days_count() if self.days_count() else 0
 
-    def validate(self) -> Optional[str]:
+    def validate(self) -> str | None:
         if self.season not in SEASONS:
             return (f"Период «{self.name}»: сезон «{self.season}» "
                     f"не из списка {SEASONS}")
@@ -168,7 +166,7 @@ class DailyRow:
     """Одна строка: один день, все товары."""
     date: date
     guests: int
-    sales: Dict[str, int]     # {имя_товара: продано}
+    sales: dict[str, int]     # {имя_товара: продано}
 
     def weekday(self) -> int:
         """0 = понедельник, 6 = воскресенье."""
@@ -184,7 +182,7 @@ class DailyRow:
 class DailyData:
     """Все ежедневные данные за период."""
 
-    def __init__(self, rows: List[DailyRow]):
+    def __init__(self, rows: list[DailyRow]):
         self.rows = sorted(rows, key=lambda r: r.date)
 
     def __len__(self):
@@ -204,7 +202,7 @@ class DailyData:
     def sales_total(self, product: str) -> int:
         return sum(r.sales.get(product, 0) for r in self.rows)
 
-    def by_weekday_type(self) -> Dict[str, "DailyData"]:
+    def by_weekday_type(self) -> dict[str, "DailyData"]:
         """Разбить на будни и выходные."""
         weekdays = [r for r in self.rows if r.is_weekday()]
         weekends = [r for r in self.rows if r.is_weekend()]
@@ -213,7 +211,7 @@ class DailyData:
             "выходные": DailyData(weekends),
         }
 
-    def by_day_of_week(self) -> Dict[str, "DailyData"]:
+    def by_day_of_week(self) -> dict[str, "DailyData"]:
         """Разбить по дням недели (пн, вт, …)."""
         names = ["пн", "вт", "ср", "чт", "пт", "сб", "вс"]
         result = {n: [] for n in names}
@@ -230,7 +228,7 @@ class Flow:
       - эффект конверсии (на одного гостя стали покупать чаще/реже).
     """
 
-    def __init__(self, products: List[Product], periods: List[Period]):
+    def __init__(self, products: list[Product], periods: list[Period]):
         self.products = products
         self.p1, self.p2 = periods[0], periods[1]
 
@@ -245,7 +243,7 @@ class Flow:
         c2 = self.conversion(product, 2)
         return (c2 - c1) / c1 * 100 if c1 else 0
 
-    def decompose(self, product: Product) -> Dict[str, float]:
+    def decompose(self, product: Product) -> dict[str, float]:
         """
         Разложение Δпродаж на влияние потока и конверсии.
         """
@@ -281,7 +279,7 @@ class Seasonality:
     Коэффициенты сезонности по товарам + прогноз продаж.
     """
 
-    def __init__(self, records: List[SeasonRecord]):
+    def __init__(self, records: list[SeasonRecord]):
         self.records = records
 
     def has_history(self) -> bool:
@@ -306,7 +304,7 @@ class Seasonality:
                 return r.avg_sales_per_day / avg
         return 0
 
-    def all_coefficients(self) -> Dict[str, Dict[str, float]]:
+    def all_coefficients(self) -> dict[str, dict[str, float]]:
         """{товар: {сезон: коэффициент}}."""
         products = sorted({r.product for r in self.records})
         result = {}
@@ -344,7 +342,7 @@ class WeekdayWeekend:
         return len(self.daily) > 0
 
     def avg_per_day(self, group: DailyData,
-                    product: Optional[str] = None) -> float:
+                    product: str | None = None) -> float:
         """Среднее значение в день: либо гости, либо продажи товара."""
         if len(group) == 0:
             return 0
@@ -352,7 +350,7 @@ class WeekdayWeekend:
             return group.guests_total() / len(group)
         return group.sales_total(product) / len(group)
 
-    def summary_for_product(self, product: str) -> Dict[str, float]:
+    def summary_for_product(self, product: str) -> dict[str, float]:
         parts = self.daily.by_weekday_type()
         wd = self.avg_per_day(parts["будни"], product)
         we = self.avg_per_day(parts["выходные"], product)
@@ -362,7 +360,7 @@ class WeekdayWeekend:
             "индекс_вых": we / wd if wd else 0,
         }
 
-    def summary_guests(self) -> Dict[str, float]:
+    def summary_guests(self) -> dict[str, float]:
         parts = self.daily.by_weekday_type()
         wd = self.avg_per_day(parts["будни"])
         we = self.avg_per_day(parts["выходные"])
@@ -372,7 +370,7 @@ class WeekdayWeekend:
             "индекс_вых": we / wd if wd else 0,
         }
 
-    def by_day_of_week(self, product: Optional[str] = None) -> Dict[str, float]:
+    def by_day_of_week(self, product: str | None = None) -> dict[str, float]:
         """Средние по каждому дню недели (пн…вс)."""
         parts = self.daily.by_day_of_week()
         return {name: self.avg_per_day(group, product)

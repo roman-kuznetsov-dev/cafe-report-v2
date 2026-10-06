@@ -11,8 +11,8 @@
 """
 
 import os
-import xlsxwriter
 
+import xlsxwriter
 
 OUT = "cafe_data.xlsx"
 
@@ -38,7 +38,7 @@ PERIODS_DATA = [
     ("Дата начала",               "2026-01-01",            "2026-02-01"),
     ("Дата конца",                "2026-01-31",            "2026-02-28"),
     ("Сезон (зима/весна/лето/осень)", "зима",              "зима"),
-    ("Гостей",                   500               450),
+    ("Гостей",                   500,               450),
     ("Постоянные издержки, ₽",    30000,                   32000),
 ]
 
@@ -98,10 +98,7 @@ def main():
                              "num_format": "#,##0.00"})
     fmt_int = wb.add_format({"border": 1, "align": "center",
                              "num_format": "0"})
-    fmt_title = wb.add_format({"bold": True, "font_size": 13,
-                               "bg_color": "#D9E1F2", "border": 1})
-    fmt_note = wb.add_format({"italic": True, "font_color": "#666",
-                              "text_wrap": True, "valign": "top"})
+
 
     # ============================================================
     #  ЛИСТ 1. "Товары"

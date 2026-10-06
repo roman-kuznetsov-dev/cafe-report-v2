@@ -13,16 +13,20 @@
 """
 
 import os
-import sys
 from datetime import date, datetime
-from typing import List, Tuple, Optional
 
 import pandas as pd
 
 from cafe_model import (
-    Product, Period, DailyRow, DailyData,
-    SeasonRecord, SEASONS,
+    SEASONS,
+    DailyData,
+    DailyRow,
+    Period,
+    Product,
+    SeasonRecord,
 )
+
+
 def _detect_warning_row(xlsx_path: str, sheet_name: str) -> int:
     """
     Проверяет, начинается ли лист со строки-предупреждения.
@@ -69,7 +73,7 @@ def _to_float(value, row_num: int, field: str) -> float:
         raise ValueError(
             f"Лист, строка {row_num}, поле «{field}» = '{value}' "
             f"не является числом."
-        )
+        ) from None
 
 
 def _to_int(value, row_num: int, field: str) -> int:
@@ -84,7 +88,7 @@ def _to_int(value, row_num: int, field: str) -> int:
         raise ValueError(
             f"Лист, строка {row_num}, поле «{field}» = '{value}' "
             f"не является числом."
-        )
+        )from None
 
 
 def _to_date(value, row_num: int, field: str) -> date:
@@ -121,7 +125,7 @@ def _check_columns(df: pd.DataFrame, required: set, sheet_name: str):
 # ============================================================
 #  ЛИСТ "Товары"
 # ============================================================
-def load_products(xlsx_path: str) -> List[Product]:
+def load_products(xlsx_path: str) -> list[Product]:
     df = pd.read_excel(xlsx_path, sheet_name="Товары",
         skiprows=_detect_warning_row(xlsx_path, "Товары"))
 
@@ -165,7 +169,7 @@ def load_products(xlsx_path: str) -> List[Product]:
                 stock_start_2=_to_int(row["Остаток_нач_2"], row_num, "Остаток_нач_2"),
             ))
         except ValueError as e:
-            raise ValueError(f"Товар «{name}»: {e}")
+            raise ValueError(f"Товар «{name}»: {e}") from e
 
     if not products:
         raise ValueError(
@@ -177,7 +181,7 @@ def load_products(xlsx_path: str) -> List[Product]:
 # ============================================================
 #  ЛИСТ "Периоды"
 # ============================================================
-def load_periods(xlsx_path: str) -> Tuple[Period, Period]:
+def load_periods(xlsx_path: str) -> tuple[Period, Period]:
     df = pd.read_excel(xlsx_path, sheet_name="Периоды",
         skiprows=_detect_warning_row(xlsx_path, "Периоды"))
 
@@ -185,7 +189,7 @@ def load_periods(xlsx_path: str) -> Tuple[Period, Period]:
 
     # Превращаем в словарь {имя_поля: (значение1, значение2)}
     data = {}
-    for idx, row in df.iterrows():
+    for _idx, row in df.iterrows():
         field = str(row["Поле"]).strip()
         if _is_blank(field):
             continue
@@ -224,7 +228,7 @@ def load_periods(xlsx_path: str) -> Tuple[Period, Period]:
 #  ЛИСТ "Ежедневные данные"
 # ============================================================
 def load_daily(xlsx_path: str,
-               product_names: List[str]) -> DailyData:
+               product_names: list[str]) -> DailyData:
     """
     Читает лист "Ежедневные данные".
     product_names — список имён товаров из листа "Товары".
@@ -252,7 +256,7 @@ def load_daily(xlsx_path: str,
             d_parsed = _to_date(d, row_num, "Дата")
             guests = _to_int(row["Гостей"], row_num, "Гостей")
         except ValueError as e:
-            raise ValueError(str(e))
+            raise ValueError(str(e)) from e
 
         sales = {}
         for pname in product_names:
@@ -267,7 +271,7 @@ def load_daily(xlsx_path: str,
                         raise ValueError(
                             f"Лист «Ежедневные данные», строка {row_num}, "
                             f"столбец «{pname}»: '{v}' не число."
-                        )
+                        ) from None
 
         rows.append(DailyRow(date=d_parsed, guests=guests, sales=sales))
 
@@ -277,7 +281,7 @@ def load_daily(xlsx_path: str,
 # ============================================================
 #  ЛИСТ "Сезонная история"
 # ============================================================
-def load_season_history(xlsx_path: str) -> List[SeasonRecord]:
+def load_season_history(xlsx_path: str) -> list[SeasonRecord]:
     try:
         df = pd.read_excel(xlsx_path, sheet_name="Сезонная история",
             skiprows=_detect_warning_row(xlsx_path, "Сезонная история"))
@@ -316,7 +320,7 @@ def load_season_history(xlsx_path: str) -> List[SeasonRecord]:
                     "Средний_поток_в_день"),
             ))
         except ValueError as e:
-            raise ValueError(str(e))
+            raise ValueError(str(e)) from e
 
     return records
 
@@ -325,10 +329,10 @@ def load_season_history(xlsx_path: str) -> List[SeasonRecord]:
 #  ОБЩАЯ ЗАГРУЗКА
 # ============================================================
 class LoadedData:
-    def __init__(self, products: List[Product],
-                 periods: List[Period],
+    def __init__(self, products: list[Product],
+                 periods: list[Period],
                  daily: DailyData,
-                 season_records: List[SeasonRecord]):
+                 season_records: list[SeasonRecord]):
         self.products = products
         self.periods = periods
         self.daily = daily
