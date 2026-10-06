@@ -298,3 +298,51 @@ class Analysis:
             if mism:
                 warnings.append(mism)
         return warnings
+
+
+    # --------------------------------------------------------
+    #  ТОЧКА БЕЗУБЫТОЧНОСТИ
+    # --------------------------------------------------------
+    def breakeven_simple(self, period: int) -> list[dict]:
+        """
+        Простая точка безубыточности: каждый товар «как будто
+        покрывает ВСЕ постоянные издержки кафе».
+
+        Формула:
+            ТБ (шт) = Постоянные издержки / Прибыль с единицы
+        """
+        fixed = self.p1.fixed_costs if period == 1 else self.p2.fixed_costs
+        result = []
+        for p in self.products:
+            up = p.unit_profit(period)
+            qty = p.qty_1 if period == 1 else p.qty_2
+            if up > 0:
+                be = fixed / up
+                stock = qty - be
+            else:
+                be = None
+                stock = None
+            result.append({
+                "Товар": p.name,
+                "Прибыль_шт": round(up, 2),
+                "ТБ_шт": round(be, 1) if be is not None else "недостижимо",
+                "Продано": qty,
+                "Запас_шт": round(stock, 1) if stock is not None else "—",
+            })
+        return result
+
+    def breakeven_cafe_total(self, period: int) -> dict:
+        """
+        Общая точка безубыточности кафе: сколько всего должно быть
+        продано (в среднем), чтобы покрыть постоянные издержки.
+        """
+        fixed = self.p1.fixed_costs if period == 1 else self.p2.fixed_costs
+        total_profit = self.total_profit(period)
+        coverage = total_profit / fixed * 100 if fixed else 0
+        return {
+            "Период": self.p1.name if period == 1 else self.p2.name,
+            "Постоянные_издержки": round(fixed, 2),
+            "Прибыль": round(total_profit, 2),
+            "Покрытие_%": round(coverage, 1),
+            "Покрывает": "да" if total_profit >= fixed else "нет",
+        }
