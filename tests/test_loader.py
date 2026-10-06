@@ -9,8 +9,8 @@ Unit-тесты для cafe_loader.py (версия 2.0).
   - корректные ошибки при отсутствии файла.
 """
 
-import sys
 import os
+import sys
 
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
@@ -18,8 +18,11 @@ import pandas as pd
 import pytest
 
 from cafe_loader import (
-    load_all, load_products, load_periods,
-    load_daily, load_season_history,
+    load_all,
+    load_daily,
+    load_periods,
+    load_products,
+    load_season_history,
 )
 
 

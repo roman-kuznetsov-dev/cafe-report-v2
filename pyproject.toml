@@ -1,0 +1,48 @@
+[project]
+name = "cafe-report"
+version = "2.0.0"
+description = "Программа расчёта прибыли кафе, обоснованности цен, потока гостей и сезонности"
+requires-python = ">=3.10"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-v --tb=short"
+
+[tool.coverage.run]
+source = ["."]
+omit = [
+    "tests/*",
+    "venv/*",
+    "*/__init__.py",
+    "cafe_gui.py",
+    "tools/*",
+    "make_template_v2.py",
+    "cafe_data_big*",
+]
+
+[tool.coverage.report]
+exclude_lines = [
+    "pragma: no cover",
+    "if __name__ == .__main__.:",
+    "raise NotImplementedError",
+]
+
+[tool.ruff]
+line-length = 100
+target-version = "py310"
+
+[tool.ruff.lint]
+select = [
+    "E",   # pycodestyle errors
+    "W",   # pycodestyle warnings
+    "F",   # pyflakes
+    "I",   # isort
+    "B",   # flake8-bugbear
+    "UP",  # pyupgrade
+]
+ignore = [
+    "E501",  # line too long
+]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/*" = ["E501"]

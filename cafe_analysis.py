@@ -13,12 +13,17 @@
 """
 
 from dataclasses import dataclass
-from typing import List, Dict
 
 from cafe_model import (
-    Product, Period, DailyData,
-    Flow, Seasonality, SeasonRecord, WeekdayWeekend,
-    MAX_DEMAND_DROP_PCT, MIN_PROFIT_GROWTH,
+    MAX_DEMAND_DROP_PCT,
+    MIN_PROFIT_GROWTH,
+    DailyData,
+    Flow,
+    Period,
+    Product,
+    Seasonality,
+    SeasonRecord,
+    WeekdayWeekend,
 )
 
 
@@ -68,7 +73,7 @@ class Verdict:
     text: str
     score: int
     total: int
-    checks: Dict[str, bool]
+    checks: dict[str, bool]
 
 
 # ============================================================
@@ -78,10 +83,10 @@ class Analysis:
     """Общий анализ по одному объекту (загрузка → расчёты)."""
 
     def __init__(self,
-                 products: List[Product],
-                 periods: List[Period],
+                 products: list[Product],
+                 periods: list[Period],
                  daily: DailyData,
-                 season_records: List[SeasonRecord]):
+                 season_records: list[SeasonRecord]):
         self.products = products
         self.periods = periods
         self.p1, self.p2 = periods[0], periods[1]
@@ -104,7 +109,7 @@ class Analysis:
     # --------------------------------------------------------
     #  СВОДКА ПО ТОВАРАМ
     # --------------------------------------------------------
-    def _build_summaries(self) -> List[ProductSummary]:
+    def _build_summaries(self) -> list[ProductSummary]:
         result = []
         for p in self.products:
             result.append(ProductSummary(
@@ -150,7 +155,7 @@ class Analysis:
     # --------------------------------------------------------
     #  ПОТОК ГОСТЕЙ
     # --------------------------------------------------------
-    def flow_summary(self) -> List[Dict]:
+    def flow_summary(self) -> list[dict]:
         """Конверсия и разложение продаж по каждому товару."""
         result = []
         for p in self.products:
@@ -176,13 +181,13 @@ class Analysis:
     def has_season_history(self) -> bool:
         return self.seasonality.has_history()
 
-    def season_coefficients(self) -> Dict[str, Dict[str, float]]:
+    def season_coefficients(self) -> dict[str, dict[str, float]]:
         return self.seasonality.all_coefficients()
 
     def season_current(self) -> str:
         return self.p2.season
 
-    def season_forecast_per_product(self) -> List[Dict]:
+    def season_forecast_per_product(self) -> list[dict]:
         if not self.has_season_history():
             return []
         result = []
@@ -205,7 +210,7 @@ class Analysis:
     def has_daily_data(self) -> bool:
         return len(self.daily) > 0
 
-    def weekday_weekend_for_period(self, period_num: int) -> Dict:
+    def weekday_weekend_for_period(self, period_num: int) -> dict:
         group = self.daily_p1 if period_num == 1 else self.daily_p2
         if len(group) == 0:
             return {}
@@ -218,7 +223,7 @@ class Analysis:
             "products": products_result,
         }
 
-    def weekday_by_day_of_week(self, period_num: int) -> Dict[str, float]:
+    def weekday_by_day_of_week(self, period_num: int) -> dict[str, float]:
         group = self.daily_p1 if period_num == 1 else self.daily_p2
         if len(group) == 0:
             return {}
@@ -227,7 +232,7 @@ class Analysis:
     # --------------------------------------------------------
     #  КРИТЕРИИ
     # --------------------------------------------------------
-    def _run_checks(self) -> List[CheckResult]:
+    def _run_checks(self) -> list[CheckResult]:
         checks = []
         for p in self.products:
             m1, m2 = p.markup_pct(1), p.markup_pct(2)
@@ -282,7 +287,7 @@ class Analysis:
     # --------------------------------------------------------
     #  ПРЕДУПРЕЖДЕНИЯ О ДАННЫХ
     # --------------------------------------------------------
-    def data_warnings(self) -> List[str]:
+    def data_warnings(self) -> list[str]:
         warnings = []
         for p in self.products:
             for period in (1, 2):

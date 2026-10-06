@@ -4,8 +4,8 @@ Unit-тесты для cafe_model.py (версия 2.0).
 Запуск:  pytest
 """
 
-import sys
 import os
+import sys
 from datetime import date
 
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
@@ -13,8 +13,13 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")
 import pytest
 
 from cafe_model import (
-    Product, Period, DailyRow, DailyData,
-    Flow, Seasonality, SeasonRecord,
+    DailyData,
+    DailyRow,
+    Flow,
+    Period,
+    Product,
+    Seasonality,
+    SeasonRecord,
     WeekdayWeekend,
 )
 

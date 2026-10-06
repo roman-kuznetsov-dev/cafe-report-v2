@@ -7,8 +7,8 @@ Unit-тесты для cafe_exporter.py (версия 2.0).
   - базовую структуру (заголовки, количество строк).
 """
 
-import sys
 import os
+import sys
 from datetime import date
 
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
@@ -16,11 +16,15 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")
 import pandas as pd
 import pytest
 
-from cafe_model import (
-    Product, Period, DailyRow, DailyData, SeasonRecord,
-)
 from cafe_analysis import Analysis
 from cafe_exporter import export_to_excel
+from cafe_model import (
+    DailyData,
+    DailyRow,
+    Period,
+    Product,
+    SeasonRecord,
+)
 
 
 # ============================================================

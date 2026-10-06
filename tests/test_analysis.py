@@ -11,18 +11,22 @@ Unit-тесты для cafe_analysis.py (версия 2.0).
   - предупреждения о данных.
 """
 
-import sys
 import os
+import sys
 from datetime import date
 
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
 import pytest
 
-from cafe_model import (
-    Product, Period, DailyRow, DailyData, SeasonRecord,
-)
 from cafe_analysis import Analysis
+from cafe_model import (
+    DailyData,
+    DailyRow,
+    Period,
+    Product,
+    SeasonRecord,
+)
 
 
 # ============================================================
