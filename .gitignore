@@ -1,0 +1,31 @@
+# Виртуальное окружение
+venv/
+.venv/
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.coverage
+htmlcov/
+coverage.xml
+
+# PyInstaller
+build/
+dist/
+*.spec
+
+# Отчёты (создаются при работе)
+cafe_report_*.xlsx
+test_output.xlsx
+chart_*.png
+
+# Сгенерированные файлы
+cafe_data_big.xlsx
+
+# Редакторы
+.vscode/
+.idea/
+*.swp
+.DS_Store
