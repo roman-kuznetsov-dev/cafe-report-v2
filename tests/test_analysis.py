@@ -292,3 +292,70 @@ def test_warning_stock_mismatch(periods, daily, season_records):
     a = Analysis([bad], periods, daily, season_records)
     warnings = a.data_warnings()
     assert any("≠" in w for w in warnings)
+
+# ============================================================
+#  ТОЧКА БЕЗУБЫТОЧНОСТИ
+# ============================================================
+def test_breakeven_simple_count(analysis):
+    """Возвращает по одной строке на каждый товар."""
+    be = analysis.breakeven_simple(2)
+    assert len(be) == len(analysis.products)
+
+
+def test_breakeven_simple_formula(analysis):
+    """ТБ = Пост.издержки / Прибыль с единицы."""
+    be = analysis.breakeven_simple(2)
+    chip = next(r for r in be if r["Товар"] == "Чипсы")
+    # Пост.издержки 2 периода = 32000; Прибыль/шт = 110 − 55 = 55
+    assert chip["Прибыль_шт"] == 55
+    assert chip["ТБ_шт"] == pytest.approx(32000 / 55, rel=1e-3)
+
+
+def test_breakeven_simple_stock(analysis):
+    """Запас = Продано − ТБ."""
+    be = analysis.breakeven_simple(2)
+    chip = next(r for r in be if r["Товар"] == "Чипсы")
+    expected_stock = 100 - 32000 / 55
+    assert chip["Запас_шт"] == pytest.approx(expected_stock, rel=1e-3)
+
+
+def test_breakeven_simple_period_1(analysis):
+    """Для 1 периода использует издержки 1 периода (30000)."""
+    be = analysis.breakeven_simple(1)
+    chip = next(r for r in be if r["Товар"] == "Чипсы")
+    # Прибыль/шт = 90 − 45 = 45; ТБ = 30000 / 45 ≈ 666.7
+    assert chip["ТБ_шт"] == pytest.approx(30000 / 45, rel=1e-3)
+
+
+def test_breakeven_simple_zero_margin(analysis):
+    """Если прибыль с единицы ≤ 0 — ТБ недостижимо."""
+    from cafe_model import DailyData, Product
+    bad = Product("Убыточный", "готовый", 100, 120, 90, 110, 50, 50,
+                  50, 50, 0, 0)
+    a = Analysis([bad], analysis.periods, DailyData([]), [])
+    be = a.breakeven_simple(2)
+    assert be[0]["ТБ_шт"] == "недостижимо"
+
+
+def test_breakeven_cafe_total_fields(analysis):
+    """Общая сводка содержит нужные поля."""
+    total = analysis.breakeven_cafe_total(2)
+    assert "Постоянные_издержки" in total
+    assert "Прибыль" in total
+    assert "Покрытие_%" in total
+    assert total["Постоянные_издержки"] == 32000
+
+
+def test_breakeven_cafe_total_not_covered(analysis):
+    """На тестовых данных прибыль НЕ покрывает издержки (мало товаров)."""
+    total = analysis.breakeven_cafe_total(2)
+    # Постоянные издержки 32000, прибыль 23140 → покрытие ~72%
+    assert total["Покрывает"] == "нет"
+    assert 60 < total["Покрытие_%"] < 90
+
+
+def test_breakeven_cafe_total_coverage_math(analysis):
+    """Покрытие = Прибыль / Издержки × 100."""
+    total = analysis.breakeven_cafe_total(2)
+    expected = 23140 / 32000 * 100
+    assert total["Покрытие_%"] == pytest.approx(expected, rel=1e-3)

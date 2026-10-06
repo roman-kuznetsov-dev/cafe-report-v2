@@ -1,7 +1,7 @@
 """
 Экспорт Analysis в Excel с подсветкой (версия 2.0).
 
-Создаёт 8 листов:
+Создаёт 9 листов:
   1. Сводка
   2. Обоснованность
   3. Закупки и остатки
@@ -10,6 +10,7 @@
   6. Сезонность
   7. Будни и выходные
   8. Категории
+  9. Безубыточность
 """
 
 import pandas as pd
@@ -60,7 +61,6 @@ def _sheet_justification(a: Analysis):
             "Ед.": c.unit,
             "Результат": "OK" if c.ok else "НЕТ",
         })
-    # итог по общей прибыли
     rows.append({
         "Товар": "ВСЕГО",
         "Критерий": "Общая прибыль",
@@ -70,7 +70,6 @@ def _sheet_justification(a: Analysis):
         "Результат": f"{'OK' if a.verdict.checks['Общая прибыль'] else 'НЕТ'} "
                      f"({a.total_profit_delta_pct():+.1f}%)",
     })
-    # итоговый вердикт двумя строками
     rows.append({"Товар": "", "Критерий": "", "Было": "", "Стало": "",
                  "Ед.": "", "Результат": ""})
     rows.append({
@@ -168,7 +167,6 @@ def _sheet_seasonality(a: Analysis):
                          "Заполните лист «Сезонная история»."
         }])
 
-    # коэффициенты
     coef = a.season_coefficients()
     rows = []
     for product, seasons in coef.items():
@@ -178,7 +176,6 @@ def _sheet_seasonality(a: Analysis):
         rows.append(row)
     df_coef = pd.DataFrame(rows)
 
-    # прогноз
     f_rows = a.season_forecast_per_product()
     df_forecast = pd.DataFrame([{
         "Товар": f["Товар"],
@@ -205,7 +202,6 @@ def _sheet_weekday_weekend(a: Analysis):
         w = a.weekday_weekend_for_period(period_num)
         if not w:
             continue
-        # гости
         g = w["guests"]
         rows.append({
             "Период": period_name,
@@ -214,7 +210,6 @@ def _sheet_weekday_weekend(a: Analysis):
             "Выходные": round(g["выходные"], 2),
             "Индекс_вых": round(g["индекс_вых"], 2),
         })
-        # товары
         for name, vals in w["products"].items():
             rows.append({
                 "Период": period_name,
@@ -247,10 +242,20 @@ def _sheet_categories(a: Analysis):
 
 
 # ============================================================
+#  ЛИСТ 9. Безубыточность
+# ============================================================
+def _sheet_breakeven(a: Analysis):
+    df_be = pd.DataFrame(a.breakeven_simple(2))
+    df_cafe = pd.DataFrame([a.breakeven_cafe_total(1),
+                            a.breakeven_cafe_total(2)])
+    return df_be, df_cafe
+
+
+# ============================================================
 #  ГЛАВНАЯ ФУНКЦИЯ
 # ============================================================
 def export_to_excel(analysis: Analysis, out_path: str):
-    """Сохраняет отчёт в Excel с подсветкой."""
+    """Сохраняет отчёт в Excel с подсветкой (9 листов)."""
     df_summary = _sheet_summary(analysis)
     df_just = _sheet_justification(analysis)
     df_stock = _sheet_stock(analysis)
@@ -259,8 +264,10 @@ def export_to_excel(analysis: Analysis, out_path: str):
     season_result = _sheet_seasonality(analysis)
     df_weekday = _sheet_weekday_weekend(analysis)
     df_cat = _sheet_categories(analysis)
+    df_be, df_be_cafe = _sheet_breakeven(analysis)
 
     with pd.ExcelWriter(out_path, engine="xlsxwriter") as writer:
+        # --- Запись данных ---
         df_summary.to_excel(writer, sheet_name="Сводка", index=False)
         df_just.to_excel(writer, sheet_name="Обоснованность", index=False)
         df_stock.to_excel(writer, sheet_name="Закупки и остатки", index=False)
@@ -273,11 +280,18 @@ def export_to_excel(analysis: Analysis, out_path: str):
             df_forecast.to_excel(writer, sheet_name="Сезонность",
                                  index=False, startrow=len(df_coef) + 3)
         else:
-            season_result.to_excel(writer, sheet_name="Сезонность", index=False)
+            season_result.to_excel(writer, sheet_name="Сезонность",
+                                   index=False)
 
-        df_weekday.to_excel(writer, sheet_name="Будни и выходные", index=False)
+        df_weekday.to_excel(writer, sheet_name="Будни и выходные",
+                            index=False)
         df_cat.to_excel(writer, sheet_name="Категории", index=False)
 
+        df_be.to_excel(writer, sheet_name="Безубыточность", index=False)
+        df_be_cafe.to_excel(writer, sheet_name="Безубыточность",
+                            index=False, startrow=len(df_be) + 3)
+
+        # --- Форматирование ---
         wb = writer.book
         fmt_head = wb.add_format({
             "bold": True, "bg_color": "#305496", "font_color": "white",
@@ -359,7 +373,8 @@ def export_to_excel(analysis: Analysis, out_path: str):
                 ws.set_column(c, c, 12, fmt_money)
             start = len(df_coef) + 3
             ws.merge_range(start, 0, start, 3,
-                           "ПРОГНОЗ ПРОДАЖ НА БУДУЩИЙ ПЕРИОД (сезон текущего)",
+                           "ПРОГНОЗ ПРОДАЖ НА БУДУЩИЙ ПЕРИОД "
+                           "(сезон текущего)",
                            fmt_title)
             _write_headers(ws, df_forecast.columns, fmt_head, row=start + 1)
             for c in range(len(df_forecast.columns)):
@@ -378,5 +393,20 @@ def export_to_excel(analysis: Analysis, out_path: str):
         ws.set_column(0, 0, 18)
         for c in range(1, len(df_cat.columns)):
             ws.set_column(c, c, 18, fmt_money)
+
+        # Безубыточность
+        ws = writer.sheets["Безубыточность"]
+        _write_headers(ws, df_be.columns, fmt_head)
+        ws.set_column(0, 0, 18)
+        for c in range(1, len(df_be.columns)):
+            ws.set_column(c, c, 16, fmt_money)
+
+        start_cafe = len(df_be) + 3
+        ws.merge_range(start_cafe - 1, 0, start_cafe - 1, 4,
+                       "ОБЩАЯ ТОЧКА БЕЗУБЫТОЧНОСТИ КАФЕ",
+                       fmt_title)
+        _write_headers(ws, df_be_cafe.columns, fmt_head, row=start_cafe)
+        for c in range(len(df_be_cafe.columns)):
+            ws.set_column(c, c, 18)
 
     return out_path

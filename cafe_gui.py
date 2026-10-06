@@ -2,8 +2,7 @@
 Графическое окно программы кафе (версия 2.0).
 
 Автозагрузка: при запуске ищет cafe_data.xlsx рядом с программой.
-Отчёт: сохраняется с датой в имени.
-Все файлы создаются в папке программы.
+Отчёт: сохраняется с датой в имени + создаёт 7 графиков PNG.
 
 Запуск при разработке:  python cafe_gui.py
 Сборка EXE:             pyinstaller --onefile --windowed --name CafeReport cafe_gui.py
@@ -85,6 +84,7 @@ class CafeApp:
             ("flow", "Поток гостей"),
             ("season", "Сезонность"),
             ("weekday", "Будни/выходные"),
+            ("breakeven", "Безубыточность"),
             ("settings", "Настройки"),
         ]:
             frame = ttk.Frame(self.nb)
@@ -93,7 +93,7 @@ class CafeApp:
 
         self.trees = {}
         for key in ["summary", "just", "stock", "cash",
-                    "flow", "season", "weekday"]:
+                    "flow", "season", "weekday", "breakeven"]:
             self.trees[key] = self._make_tree(self.tabs[key])
 
         self._build_settings_tab(self.tabs["settings"])
@@ -221,14 +221,19 @@ class CafeApp:
             return
 
         try:
+            from cafe_charts import make_charts
             from cafe_exporter import export_to_excel
+
             export_to_excel(self.analysis, out)
+            charts = make_charts(self.analysis, out_dir=BASE_DIR)
         except Exception as e:
             messagebox.showerror("Ошибка сохранения",
                                  f"{e}\n\n{traceback.format_exc()}")
             return
 
-        messagebox.showinfo("Готово", f"Отчёт сохранён:\n{out}")
+        msg = (f"Отчёт сохранён:\n{out}\n\n"
+               f"Графики ({len(charts)} шт.) в папке:\n{BASE_DIR}")
+        messagebox.showinfo("Готово", msg)
         try:
             if sys.platform.startswith("win"):
                 os.startfile(out)
@@ -377,6 +382,20 @@ class CafeApp:
                             ["Сообщение"],
                             [["Нет ежедневных данных — "
                               "заполните лист «Ежедневные данные»"]])
+
+        # ---- Безубыточность ----
+        rows = []
+        for r in a.breakeven_simple(2):
+            rows.append([
+                r["Товар"],
+                f"{r['Прибыль_шт']:.2f}",
+                r["ТБ_шт"],
+                r["Продано"],
+                r["Запас_шт"],
+            ])
+        self._set_table(self.trees["breakeven"],
+                        ["Товар", "Прибыль/шт", "ТБ (шт)",
+                         "Продано", "Запас"], rows)
 
 
 if __name__ == "__main__":
