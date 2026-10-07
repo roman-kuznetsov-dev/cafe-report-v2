@@ -46,6 +46,16 @@ def _sheet_summary(a: Analysis):
         })
     return pd.DataFrame(rows)
 
+def _sheet_period_warnings(a: Analysis):
+    """Лист с предупреждениями о периодах."""
+    warnings = a.period_warnings()
+    if not warnings:
+        return pd.DataFrame([{
+            "Статус": "OK",
+            "Предупреждение": "Периоды сопоставимы. Сравнение корректно."
+        }])
+    rows = [{"Статус": "⚠", "Предупреждение": w} for w in warnings]
+    return pd.DataFrame(rows)
 
 # ============================================================
 #  ЛИСТ 2. Обоснованность
@@ -265,9 +275,11 @@ def export_to_excel(analysis: Analysis, out_path: str):
     df_weekday = _sheet_weekday_weekend(analysis)
     df_cat = _sheet_categories(analysis)
     df_be, df_be_cafe = _sheet_breakeven(analysis)
+    df_warnings = _sheet_period_warnings(analysis)
 
     with pd.ExcelWriter(out_path, engine="xlsxwriter") as writer:
         # --- Запись данных ---
+        df_warnings.to_excel(writer, sheet_name="Предупреждения", index=False)
         df_summary.to_excel(writer, sheet_name="Сводка", index=False)
         df_just.to_excel(writer, sheet_name="Обоснованность", index=False)
         df_stock.to_excel(writer, sheet_name="Закупки и остатки", index=False)
@@ -306,6 +318,19 @@ def export_to_excel(analysis: Analysis, out_path: str):
         fmt_int = wb.add_format({"num_format": "0", "border": 1})
         fmt_title = wb.add_format({"bold": True, "font_size": 12,
                                    "bg_color": "#D9E1F2", "border": 1})
+
+        # Предупреждения
+        ws = writer.sheets["Предупреждения"]
+        _write_headers(ws, df_warnings.columns, fmt_head)
+        ws.set_column(0, 0, 10)
+        ws.set_column(1, 1, 120)
+
+        fmt_warn_row = wb.add_format({"bg_color": "#FFF2CC",
+                               "font_color": "#7F6000",
+                               "border": 1, "text_wrap": True})
+        for i in range(len(df_warnings)):
+            ws.write(i + 1, 0, df_warnings.iloc[i, 0], fmt_warn_row)
+            ws.write(i + 1, 1, df_warnings.iloc[i, 1], fmt_warn_row)
 
         # Сводка
         ws = writer.sheets["Сводка"]
