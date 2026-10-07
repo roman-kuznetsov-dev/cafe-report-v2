@@ -201,8 +201,14 @@ class CafeApp:
         self._fill_all_tabs()
 
         v = self.analysis.verdict
-        self.lbl_verdict.config(
-            text=f"Вердикт: {v.text}  ({v.score}/{v.total})")
+        text = f"Вердикт: {v.text}  ({v.score}/{v.total})"
+
+        # Предупреждения о периодах
+        pw = self.analysis.period_warnings()
+        if pw:
+            text += f"  ⚠ Предупреждений о периодах: {len(pw)}"
+
+        self.lbl_verdict.config(text=text)
 
     def save_report(self):
         if not self.analysis:
@@ -277,6 +283,13 @@ class CafeApp:
                         ["Товар", "Категория", "Выручка1", "Выручка2",
                          "Прибыль1", "Прибыль2", "Δ Прибыль",
                          "Δ Прибыль%", "Наценка1", "Наценка2"], rows)
+                         
+        # Предупреждения о периодах — в конец таблицы "Сводка"
+        warnings = a.period_warnings()
+        for w in warnings:
+            self.trees["summary"].insert(
+                "", "end",
+                values=["⚠", w, "", "", "", "", "", "", "", ""])
 
         # ---- Обоснованность ----
         rows = []
