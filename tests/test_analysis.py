@@ -359,3 +359,83 @@ def test_breakeven_cafe_total_coverage_math(analysis):
     total = analysis.breakeven_cafe_total(2)
     expected = 23140 / 32000 * 100
     assert total["Покрытие_%"] == pytest.approx(expected, rel=1e-3)
+
+
+
+# ============================================================
+#  ПРЕДУПРЕЖДЕНИЯ О ПЕРИОДАХ
+# ============================================================
+def test_period_warnings_different_length(analysis):
+    """На тестовых данных разная длина (31 vs 28) — должно быть предупреждение."""
+    w = analysis.period_warnings()
+    assert any("Разная длина периодов" in x for x in w)
+
+
+def test_period_warnings_no_season_warning_same_season(analysis):
+    """Оба периода — зима, предупреждения о сезонах быть не должно."""
+    w = analysis.period_warnings()
+    assert not any("Разные сезоны" in x for x in w)
+
+
+def test_period_warnings_different_seasons():
+    """Периоды с разными сезонами → предупреждение."""
+    from datetime import date
+
+    from cafe_model import DailyData, Period, Product
+    p1 = Period("Январь", date(2026, 1, 1), date(2026, 1, 31),
+                "зима", 30000, guests=500)
+    p2 = Period("Июнь", date(2026, 6, 1), date(2026, 6, 30),
+                "лето", 32000, guests=450)
+    product = Product("Тест", "готовый", 45, 55, 90, 110, 100, 90,
+                      150, 120, 0, 50)
+    a = Analysis([product], [p1, p2], DailyData([]), [])
+    w = a.period_warnings()
+    assert any("Разные сезоны" in x for x in w)
+
+
+def test_period_warnings_large_gap():
+    """Большой разрыв между периодами (январь → июнь) → предупреждение."""
+    from datetime import date
+
+    from cafe_model import DailyData, Period, Product
+    p1 = Period("Январь", date(2026, 1, 1), date(2026, 1, 31),
+                "зима", 30000, guests=500)
+    p2 = Period("Июнь", date(2026, 6, 1), date(2026, 6, 30),
+                "лето", 32000, guests=450)
+    product = Product("Тест", "готовый", 45, 55, 90, 110, 100, 90,
+                      150, 120, 0, 50)
+    a = Analysis([product], [p1, p2], DailyData([]), [])
+    w = a.period_warnings()
+    assert any("Большой разрыв" in x for x in w)
+
+
+def test_period_warnings_same_length_no_warning():
+    """Одинаковые периоды (оба по 30 дней) — предупреждений о длине нет."""
+    from datetime import date
+
+    from cafe_model import DailyData, Period, Product
+    p1 = Period("Апрель", date(2026, 4, 1), date(2026, 4, 30),
+                "весна", 30000, guests=500)
+    p2 = Period("Июнь", date(2026, 6, 1), date(2026, 6, 30),
+                "зима", 32000, guests=450)
+    product = Product("Тест", "готовый", 45, 55, 90, 110, 100, 90,
+                      150, 120, 0, 50)
+    a = Analysis([product], [p1, p2], DailyData([]), [])
+    w = a.period_warnings()
+    assert not any("Разная длина" in x for x in w)
+
+
+def test_period_warnings_periods_overlap():
+    """Периоды пересекаются → предупреждение."""
+    from datetime import date
+
+    from cafe_model import DailyData, Period, Product
+    p1 = Period("Январь", date(2026, 1, 1), date(2026, 2, 15),
+                "зима", 30000, guests=500)
+    p2 = Period("Февраль", date(2026, 2, 1), date(2026, 2, 28),
+                "зима", 32000, guests=450)
+    product = Product("Тест", "готовый", 45, 55, 90, 110, 100, 90,
+                      150, 120, 0, 50)
+    a = Analysis([product], [p1, p2], DailyData([]), [])
+    w = a.period_warnings()
+    assert any("пересекаются" in x for x in w)
