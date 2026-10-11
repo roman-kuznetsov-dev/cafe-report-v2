@@ -85,6 +85,7 @@ class CafeApp:
             ("season", "Сезонность"),
             ("weekday", "Будни/выходные"),
             ("breakeven", "Безубыточность"),
+            ("whatif", "Что-если"),
             ("settings", "Настройки"),
         ]:
             frame = ttk.Frame(self.nb)
@@ -93,8 +94,41 @@ class CafeApp:
 
         self.trees = {}
         for key in ["summary", "just", "stock", "cash",
-                    "flow", "season", "weekday", "breakeven"]:
+                     "flow", "season", "weekday", "breakeven"]:
             self.trees[key] = self._make_tree(self.tabs[key])
+
+        # --- Вкладка «Что-если» — особый layout ---
+        whatif_frame = self.tabs["whatif"]
+        for w in whatif_frame.winfo_children():
+            w.destroy()
+
+        top_bar = ttk.Frame(whatif_frame, padding=6)
+        top_bar.pack(fill="x")
+
+        ttk.Button(top_bar, text="💡 Найти оптимум",
+                command=self.whatif_optimize).pack(side="left")
+        ttk.Button(top_bar, text="✏️ Изменить цену товара",
+           command=self.whatif_edit_price).pack(side="left", padx=6)
+        ttk.Button(top_bar, text="↺ Сбросить к текущим",
+                command=self.whatif_reset).pack(side="left", padx=6)
+
+        ttk.Label(top_bar,
+                text="Меняйте цены товаров и смотрите прогноз прибыли.",
+                foreground="gray").pack(side="left", padx=12)
+
+        bottom = ttk.Frame(whatif_frame)
+        bottom.pack(side="bottom", fill="x", pady=6)
+
+
+        self.lbl_whatif_total = ttk.Label(
+            whatif_frame, text="Суммарная прибыль: —",
+            font=("Segoe UI", 11, "bold"))
+        self.lbl_whatif_total.pack(anchor="w", padx=8)
+
+
+        self.trees["whatif"] = self._make_tree(whatif_frame)
+
+        self.whatif_prices = {}
 
         self._build_settings_tab(self.tabs["settings"])
 
@@ -410,6 +444,141 @@ class CafeApp:
                         ["Товар", "Прибыль/шт", "ТБ (шт)",
                          "Продано", "Запас"], rows)
 
+
+        # ---- Что-если ----
+        self._update_whatif_table()
+
+    # ---------- вкладка «Что-если» ----------
+    def _update_whatif_table(self):
+        """Обновляет таблицу прогноза на вкладке «Что-если»."""
+        if not self.analysis:
+            return
+
+        from cafe_optimizer import forecast_all_at_prices
+
+        prices = self.whatif_prices or {}
+        result = forecast_all_at_prices(
+            self.analysis.products, prices, period=2,
+            elasticity=self.var_elast.get())
+
+        rows = []
+        for r in result["результаты"]:
+            rows.append([
+                r["Товар"],
+                f"{r['Базовая_цена']:.2f}",
+                f"{r['Новая_цена']:.2f}",
+                f"{r['Δ_цены_%']:+.1f}%",
+                f"{r['Базовая_продажа']} → {r['Новая_продажа']}",
+                f"{r['Базовая_прибыль']:.2f} → {r['Новая_прибыль']:.2f}",
+                f"{r['Δ_прибыль']:+.2f}",
+            ])
+
+        self._set_table(self.trees["whatif"],
+                        ["Товар", "Текущая цена", "Новая цена", "Δ%",
+                        "Продажа (было → стало)",
+                        "Прибыль (было → стало)",
+                        "Δ прибыли"], rows)
+
+        total_text = (f"Суммарная прибыль: "
+                  f"{result['базовая_прибыль']:.2f} ₽ → "
+                  f"{result['новая_прибыль']:.2f} ₽   "
+                  f"(Δ {result['Δ_прибыль']:+.2f} ₽, "
+                  f"{result['Δ_прибыль_%']:+.1f}%)")
+        self.lbl_whatif_total.config(text=total_text)
+
+    def whatif_reset(self):
+        """Сбрасывает новые цены к текущим."""
+        self.whatif_prices = {}
+        self._update_whatif_table()
+
+    def whatif_optimize(self):
+        """Запускает оптимизацию по всем товарам."""
+        if not self.analysis:
+            messagebox.showinfo("Нет данных", "Сначала загрузите файл.")
+            return
+
+        from cafe_optimizer import optimize_all
+
+        results = optimize_all(
+            self.analysis.products, period=2,
+            elasticity=self.var_elast.get())
+
+        self.whatif_prices = {r.product: r.optimal_price for r in results}
+        self._update_whatif_table()
+
+    def whatif_edit_price(self):
+        """Открывает диалог ввода новой цены для выбранного товара."""
+        if not self.analysis:
+            messagebox.showinfo("Нет данных", "Сначала загрузите файл.")
+            return
+
+        tree = self.trees["whatif"]
+        selection = tree.selection()
+        if not selection:
+            messagebox.showinfo("Не выбран товар",
+                            "Кликните по строке товара в таблице.")
+            return
+
+        item = tree.item(selection[0])
+        values = item["values"]
+        product_name = values[0]
+
+        product = next(
+            (p for p in self.analysis.products if p.name == product_name),
+            None)
+        if not product:
+            return
+
+        base_price = product.sale_price_2
+        current_new = self.whatif_prices.get(product_name, base_price)
+
+        dialog = tk.Toplevel(self.root)
+        dialog.title(f"Новая цена для {product_name}")
+        dialog.geometry("360x160")
+        dialog.transient(self.root)
+        dialog.grab_set()
+
+        ttk.Label(dialog, text=f"Товар: {product_name}",
+                  font=("Segoe UI", 10, "bold")).pack(pady=(12, 4))
+        ttk.Label(dialog, text=f"Текущая цена: {base_price:.2f} ₽"
+                  ).pack()
+
+        frm = ttk.Frame(dialog, padding=10)
+        frm.pack(fill="x")
+        ttk.Label(frm, text="Новая цена, ₽:").pack(side="left")
+        var_price = tk.StringVar(value=f"{current_new:.2f}")
+        entry = ttk.Entry(frm, textvariable=var_price, width=12)
+        entry.pack(side="left", padx=8)
+        entry.focus()
+
+        def on_ok():
+            try:
+                new_price = float(var_price.get().replace(",", "."))
+                if new_price < 0:
+                    raise ValueError("Цена не может быть отрицательной")
+            except ValueError as e:
+                messagebox.showerror("Ошибка", f"Неверная цена: {e}",
+                                       parent=dialog)
+                return
+            self.whatif_prices[product_name] = new_price
+            dialog.destroy()
+            self._update_whatif_table()
+
+        def on_reset():
+            self.whatif_prices.pop(product_name, None)
+            dialog.destroy()
+            self._update_whatif_table()
+
+        btn_frm = ttk.Frame(dialog, padding=(10, 6))
+        btn_frm.pack(fill="x")
+        ttk.Button(btn_frm, text="OK", command=on_ok).pack(side="right")
+        ttk.Button(btn_frm, text="Отмена",
+                   command=dialog.destroy).pack(side="right", padx=6)
+        ttk.Button(btn_frm, text="Сбросить",
+                   command=on_reset).pack(side="left")
+
+        dialog.bind("<Return>", lambda e: on_ok())
+        dialog.bind("<Escape>", lambda e: dialog.destroy())
 
 if __name__ == "__main__":
     root = tk.Tk()
