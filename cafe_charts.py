@@ -244,6 +244,64 @@ def _chart_breakeven(a: Analysis, out_dir: str):
 
 
 # ============================================================
+#  8. ГРАФИК ОПТИМУМА ЦЕНЫ
+# ============================================================
+def _chart_optimal(a: Analysis, out_dir: str):
+    """
+    Кривая «прибыль vs изменение цены» с отметкой оптимума.
+    Считает прибыль суммарно по всем товарам при каждом Δ%.
+    """
+    from cafe_model import ELASTICITY
+
+    products = a.products
+    if not products:
+        return
+
+    deltas = list(range(-20, 41, 1))     # от −20% до +40% с шагом 1%
+
+    profits = []
+    for d in deltas:
+        total = 0
+        for p in products:
+            base_price = p.sale_price_2
+            base_qty = p.qty_2
+            purchase = p.purchase_price_2
+
+            new_price = base_price * (1 + d / 100)
+            new_qty = base_qty * (1 - ELASTICITY * d / 100)
+            new_qty = max(0, new_qty)
+            total += (new_price - purchase) * new_qty
+        profits.append(total)
+
+    # Находим оптимум
+    max_profit = max(profits)
+    idx_max = profits.index(max_profit)
+    optimal_delta = deltas[idx_max]
+
+    # Базовая прибыль (Δ=0)
+    base_profit = profits[deltas.index(0)]
+
+    fig, ax = plt.subplots(figsize=(10, 5))
+    ax.plot(deltas, profits, color="#1d3557", linewidth=2,
+            label="Прибыль")
+    ax.scatter([optimal_delta], [max_profit],
+               color="#e63946", s=150, zorder=5,
+               label=f"Оптимум: {optimal_delta:+d}% "
+                     f"({max_profit:,.0f} ₽)".replace(",", " "))
+    ax.axvline(0, color="gray", linestyle=":", label="Текущая цена")
+
+    # Подпись разницы
+    delta_profit = max_profit - base_profit
+    ax.set_title(f"Оптимум цены: прибыль {base_profit:,.0f} ₽ → "
+                 f"{max_profit:,.0f} ₽ "
+                 f"(+{delta_profit:,.0f} ₽)".replace(",", " "))
+    ax.set_xlabel("Изменение цены, %")
+    ax.set_ylabel("Суммарная прибыль, ₽")
+    ax.legend()
+    _save(fig, out_dir, "chart_optimal.png")
+
+
+# ============================================================
 #  ГЛАВНАЯ ФУНКЦИЯ
 # ============================================================
 def make_charts(a: Analysis, out_dir: str = "."):
@@ -274,5 +332,9 @@ def make_charts(a: Analysis, out_dir: str = "."):
     _chart_breakeven(a, out_dir)
     if os.path.exists(os.path.join(out_dir, "chart_breakeven.png")):
         created.append(os.path.join(out_dir, "chart_breakeven.png"))
+
+    _chart_optimal(a, out_dir)
+    if os.path.exists(os.path.join(out_dir, "chart_optimal.png")):
+        created.append(os.path.join(out_dir, "chart_optimal.png"))
 
     return created
