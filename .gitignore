@@ -29,3 +29,11 @@ cafe_data_big.xlsx
 .idea/
 *.swp
 .DS_Store
+
+# Импорт внешних данных - тестовые файлы
+test_1c_export.xlsx
+test_import_*.xlsx
+test_import_*.csv
+
+# Локальный маппинг (не коммитим рабочую копию)
+tools/mappings_local.json
