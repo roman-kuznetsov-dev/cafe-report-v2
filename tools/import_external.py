@@ -146,14 +146,26 @@ COLUMN_HINTS = {
 
 
 def guess_mapping(columns) -> dict:
-    """Угадывает маппинг по именам столбцов."""
+    """
+    Угадывает маппинг по именам столбцов.
+
+    Каждый столбец используется один раз: если столбец уже привязан
+    к какому-то полю, он не будет использован повторно.
+    Это защищает от ситуации, когда <<Закуп.Цена>> цепляется и к
+    <<Закуп_1>>, и к <<Цена_1>>.
+    """
+
     result = {}
+    used_columns = set()
     lower_cols = [(c, str(c).strip().lower()) for c in columns]
 
     for target, hints in COLUMN_HINTS.items():
         for original, low in lower_cols:
+            if original in used_columns:
+                continue
             if any(h in low for h in hints):
                 result[target] = str(original)
+                used_columns.add(original)
                 break
     return result
 
@@ -208,6 +220,125 @@ def apply_mapping(df: pd.DataFrame,
         df = collapse_duplicates(df, "Товар", agg)
 
     return df
+
+
+# ============================================================
+#  ИНТЕРАКТИВНЫЙ ДИАЛОГ
+# ============================================================
+def interactive_dialog(columns, sig) -> dict:
+    """
+    Спрашивает у пользователя, какой столбец соответствует какому полю.
+    Возвращает маппинг {наша_колонка: имя_столбца_во_входе}.
+
+    columns — список столбцов входного файла.
+    sig — signature (для информации).
+    """
+    print("\n" + "=" * 60)
+    print("НАСТРОЙКА МАППИНГА")
+    print("=" * 60)
+
+    # Что нужно сопоставить (только обязательные поля)
+    fields = [
+        ("Товар", True,
+         "Название товара"),
+        ("Категория", False,
+         "Категория (готовый / напиток). Можно пропустить — "
+         "тогда ставим «готовый» по умолчанию."),
+        ("Закуп_1", True,
+         "Закупочная цена в 1 периоде"),
+        ("Цена_1", True,
+         "Цена продажи в 1 периоде"),
+        ("Кол_1", True,
+         "Продано штук в 1 периоде"),
+        ("Закуп_кол_1", False,
+         "Закуплено штук в 1 периоде. Если нет — "
+         "поставим равным проданному."),
+        ("Остаток_нач_1", False,
+         "Остаток на начало 1 периода. Если нет — 0."),
+        ("Закуп_2", False,
+         "Закупочная цена во 2 периоде. Если нет — "
+         "возьмём из 1 периода."),
+        ("Цена_2", False,
+         "Цена продажи во 2 периоде. Если нет — "
+         "возьмём из 1 периода."),
+        ("Кол_2", False,
+         "Продано штук во 2 периоде. Если нет — "
+         "возьмём из 1 периода."),
+    ]
+
+    # Автоподсказки по именам столбцов
+    hints = guess_mapping(columns)
+
+    # Показываем столбцы с номерами
+    print("\nСтолбцы в вашем файле:")
+    for i, c in enumerate(columns):
+        print(f"  [{i}] {c}")
+
+    print("\nДля каждого поля — введите имя или номер столбца.")
+    print("Пустой ввод = пропустить (только для необязательных).")
+    print()
+
+    mapping = {}
+
+    for field, required, description in fields:
+        while True:
+            # Подсказка от автопоиска
+            hint_text = ""
+            if field in hints:
+                hint_text = f" [подсказка: {hints[field]}]"
+
+            prompt = f"Поле «{field}» — {description}{hint_text}\n> "
+            answer = input(prompt).strip()
+
+            # Пустой ввод
+            if not answer:
+                if required:
+                    print("  ✗ Это поле обязательное. Введите столбец.")
+                    continue
+                break
+
+            # Попытка использовать подсказку
+            if field in hints and answer.lower() == "hint":
+                mapping[field] = hints[field]
+                print(f"  ✓ Использую подсказку: {hints[field]}")
+                break
+
+            # Ввод — номер столбца
+            if answer.isdigit():
+                idx = int(answer)
+                if 0 <= idx < len(columns):
+                    mapping[field] = str(columns[idx])
+                    print(f"  ✓ {field} = {columns[idx]}")
+                    break
+                else:
+                    print(f"  ✗ Номер вне диапазона (0–{len(columns) - 1})")
+                    continue
+
+            # Ввод — имя столбца
+            matched = None
+            for c in columns:
+                if str(c).strip().lower() == answer.lower():
+                    matched = str(c)
+                    break
+            if matched:
+                mapping[field] = matched
+                print(f"  ✓ {field} = {matched}")
+                break
+
+            print(f"  ✗ Столбец «{answer}» не найден. "
+                  f"Введите номер или точное имя.")
+
+    print("\n" + "=" * 60)
+    print("ИТОГОВЫЙ МАППИНГ")
+    print("=" * 60)
+    for k, v in mapping.items():
+        print(f"  {k} ← {v}")
+
+    confirm = input("\nСохранить маппинг? (д/н) [д]: ").strip().lower()
+    if confirm and confirm not in ("д", "y", "yes", "да"):
+        raise ValueError("Маппинг не подтверждён пользователем")
+
+    return mapping
 
 
 # ============================================================
@@ -287,7 +418,7 @@ def main():
 
     try:
         import_data(args.input, args.out,
-                    dialog_func=dummy_dialog,
+                    dialog_func=interactive_dialog,
                     collapse=not args.no_collapse)
     except Exception as e:
         print(f"ОШИБКА: {e}")
