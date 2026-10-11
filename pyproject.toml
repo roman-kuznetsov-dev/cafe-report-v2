@@ -16,7 +16,7 @@ omit = [
     "*/__init__.py",
     "cafe_gui.py",
     "cafe_charts.py",
-    "tools/*",
+    "tools/generate_test_data.py",
     "make_template_v2.py",
     "cafe_data_big*",
 ]
