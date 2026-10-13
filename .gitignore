@@ -37,3 +37,6 @@ test_import_*.csv
 
 # Локальный маппинг (не коммитим рабочую копию)
 tools/mappings_local.json
+
+# Streamlit
+.streamlit/secrets.toml
