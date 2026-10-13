@@ -126,13 +126,14 @@ if period_warnings:
 # ============================================================
 #  ВКЛАДКИ
 # ============================================================
-tab_summary, tab_just, tab_stock, tab_flow, tab_be, tab_whatif = st.tabs([
+(tab_summary, tab_just, tab_stock, tab_flow, tab_be, tab_whatif, tab_charts) = st.tabs([
     "📊 Сводка",
     "✅ Обоснованность",
     "🚚 Закупки",
     "👥 Поток гостей",
     "📉 Безубыточность",
     "💡 Что-если",
+    "📈 Графики",
 ])
 
 
@@ -344,3 +345,41 @@ if st.button("Подготовить отчёт Excel"):
     finally:
         if os.path.exists(out_path):
             os.unlink(out_path)
+
+
+# ============================================================
+#  ВКЛАДКА 7. ГРАФИКИ
+# ============================================================
+with tab_charts:
+    st.markdown("**Графики создаются динамически на основе ваших данных.**")
+
+    if st.button("🔄 Сгенерировать графики"):
+        with st.spinner("Генерирую графики..."):
+            # Постоянная папка для графиков (внутри Streamlit temp)
+            charts_dir = os.path.join(tempfile.gettempdir(), "cafe_charts")
+            os.makedirs(charts_dir, exist_ok=True)
+
+            try:
+                from cafe_charts import make_charts
+                make_charts(analysis, out_dir=charts_dir)
+
+                chart_files = [
+                    ("chart_prices.png", "Динамика цен"),
+                    ("chart_profit.png", "Прибыль по товарам"),
+                    ("chart_demand.png", "Падение спроса"),
+                    ("chart_guests.png", "Поток гостей"),
+                    ("chart_weekday.png", "Будни и выходные"),
+                    ("chart_seasonality.png", "Сезонность"),
+                    ("chart_breakeven.png", "Точка безубыточности"),
+                    ("chart_optimal.png", "Оптимум цены"),
+                ]
+
+                for filename, title in chart_files:
+                    path = os.path.join(charts_dir, filename)
+                    if os.path.exists(path):
+                        st.subheader(title)
+                        st.image(path, use_container_width=True)
+            except Exception as e:
+                st.error(f"Ошибка при создании графиков: {e}")
+    else:
+        st.info("👆 Нажмите «Сгенерировать графики», чтобы увидеть.")
